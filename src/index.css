@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+input[type='file']::file-selector-button {
+  margin-right: 20px;
+  border: none;
+  padding: 10px 20px;
+  color: black;
+  cursor: pointer;
+}
