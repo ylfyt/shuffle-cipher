@@ -11,7 +11,7 @@ function App() {
 
 	return (
 		<div className="App min-h-screen flex justify-center text-slate-300">
-			<div className="w-3/4 lg:w-1/2">
+			<div className="w-3/4 lg:w-2/5">
 				<main className="flex flex-col gap-6 mb-10">
 					<h1 className="text-3xl text-center mt-5 font-semibold">Block Cipher</h1>
 					<Key />

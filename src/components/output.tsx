@@ -1,9 +1,15 @@
-import { FC, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
+import { useRootContext } from '../contexts/root';
 
 interface OutputProps {}
 
 const Output: FC<OutputProps> = () => {
-	const [isBinary, setIsBinary] = useState(true);
+	const { output } = useRootContext();
+	const [text, setText] = useState('');
+
+	useEffect(() => {
+		console.log(output);
+	}, [output]);
 
 	return (
 		<div>
@@ -18,13 +24,7 @@ const Output: FC<OutputProps> = () => {
 					</button>
 				</div>
 			</div>
-			{isBinary ? (
-				<div className="border-2 border-slate-500 p-2 min-h-[50px] rounded-md flex items-center">
-					<div className="bg-slate-600 rounded-md text-center w-3/4 mx-auto">Output is a binary file. Please download it!</div>
-				</div>
-			) : (
-				<div className="border-2 p-2 min-h-[50px] rounded-md break-words">Test</div>
-			)}
+			<div className="border-slate-500 border-2 p-2 min-h-[50px] rounded-md break-words">{text}</div>
 		</div>
 	);
 };
