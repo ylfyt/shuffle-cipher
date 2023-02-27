@@ -9,7 +9,7 @@ const Input: FC<InputProps> = () => {
 		<div className="flex flex-col gap-4">
 			<div className="flex rounded h-[40px]">
 				<button
-					className={`w-full shadow-md rounded-l-lg ${!isFromFile ? 'bg-gray-600' : 'bg-gray-300'}`}
+					className={`w-full shadow-md rounded-l-lg ${!isFromFile ? 'bg-slate-700' : 'bg-slate-500 text-slate-900'}`}
 					onClick={() => {
 						setIsFromFile(false);
 					}}
@@ -17,7 +17,7 @@ const Input: FC<InputProps> = () => {
 					Text
 				</button>
 				<button
-					className={`rounded-r-lg shadow-md w-full ${isFromFile ? 'bg-gray-600' : 'bg-gray-300'}`}
+					className={`rounded-r-lg shadow-md w-full ${isFromFile ? 'bg-slate-700' : 'bg-slate-500 text-slate-900'}`}
 					onClick={() => {
 						setIsFromFile(true);
 					}}
@@ -27,9 +27,9 @@ const Input: FC<InputProps> = () => {
 			</div>
 			<div className="flex flex-col gap-4">
 				{!isFromFile ? (
-					<textarea className="w-full p-2 rounded-md" rows={8} placeholder="text" />
+					<textarea className="focus:outline-none focus:outline-slate-500 bg-slate-700 w-full p-2 rounded-md" rows={8} placeholder="Text ..." />
 				) : (
-					<input className="bg-white file:rounded-md file:bg-gray-300 hover:file:bg-gray-400 w-full p-2 rounded-md" type="file" />
+					<input className="bg-slate-700 file:rounded-md file:bg-slate-500 file:text-slate-900 hover:file:bg-slate-400 w-full p-2 rounded-md" type="file" />
 				)}
 			</div>
 		</div>

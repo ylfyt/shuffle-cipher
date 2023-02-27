@@ -10,10 +10,10 @@ function App() {
 	}, []);
 
 	return (
-		<div className="App min-h-screen flex justify-center text-white">
+		<div className="App min-h-screen flex justify-center text-slate-300">
 			<div className="w-3/4 lg:w-1/2">
-				<main className="flex flex-col gap-5 mb-10">
-					<h1 className="text-3xl text-center mt-5">Block Cipher</h1>
+				<main className="flex flex-col gap-6 mb-10">
+					<h1 className="text-3xl text-center mt-5 font-semibold">Block Cipher</h1>
 					<Key />
 					<Input />
 					<Action />
