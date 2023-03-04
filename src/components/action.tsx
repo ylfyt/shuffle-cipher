@@ -4,17 +4,33 @@ import { useRootContext } from '../contexts/root';
 interface ActionProps {}
 
 const Action: FC<ActionProps> = () => {
-	const { isFromFile, dataText, dataFile, key } = useRootContext();
+	const { isFromFile, dataText, dataFile, key, runCrypto } = useRootContext();
 
 	const [isDisabled, setIsDisabled] = useState(false);
 	const [message, setMessage] = useState('');
+	const [loading, setLoading] = useState(false);
 
 	useEffect(() => {
-		setIsDisabled(key.length === 0 || (!isFromFile ? dataText.length === 0 : !dataFile));
-	}, [isFromFile, dataText, dataFile, key]);
+		setIsDisabled(loading || key.length === 0 || (!isFromFile ? dataText.length === 0 : !dataFile));
+	}, [isFromFile, dataText, dataFile, key, loading]);
 
-	const run = (action: 'encrypt' | 'decrypt') => {
-		console.log(action);
+	const run = async (action: 'encrypt' | 'decrypt') => {
+		setLoading(true);
+		setMessage('Loading...');
+		const res = await runCrypto({
+			key,
+			action,
+			data: new Uint8Array(),
+		});
+		setMessage('');
+		setLoading(false);
+
+		if (!res.success) {
+			setMessage(res.message);
+			return;
+		}
+
+		console.log(res);
 	};
 
 	return (

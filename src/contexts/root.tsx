@@ -51,8 +51,8 @@ const RootProvider: FC<Props> = ({ children }) => {
 
 	const worker: Worker = useMemo(() => new Worker(new URL('../workers/crypto.ts', import.meta.url), { type: 'module' }), []);
 
-	useEffect(() => {    
-		worker.onmessage = (e: MessageEvent<ICryptoResponse | Uint8Array>) => {  
+	useEffect(() => {
+		worker.onmessage = (e: MessageEvent<ICryptoResponse | Uint8Array>) => {
 			const res = e.data;
 			if (res instanceof Uint8Array) {
 				console.log(`Get response data for ${tmpResponse!.id} with length: ${res.length}`);
@@ -73,10 +73,6 @@ const RootProvider: FC<Props> = ({ children }) => {
 			const resolve = resolvers.get(res.id)!;
 			resolve(res);
 			resolvers.delete(res.id);
-		};
-  
-    return () => {
-			worker.terminate();
 		};
 	}, []);
 
