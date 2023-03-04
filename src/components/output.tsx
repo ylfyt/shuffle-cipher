@@ -8,7 +8,7 @@ const Output: FC<OutputProps> = () => {
 	const [text, setText] = useState('');
 
 	useEffect(() => {
-		console.log(output);
+		// console.log(output);
 	}, [output]);
 
 	return (
