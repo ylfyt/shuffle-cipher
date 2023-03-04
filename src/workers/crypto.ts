@@ -1,42 +1,34 @@
 import { decrypt, encrypt } from '../algorithms/shuffle-aes';
 import { ICryptoRequest } from '../interfaces/crypto-request';
 import { ICryptoResponse } from '../interfaces/crypto-response';
+import { strToBytes } from '../utils/str-to-bytes';
 
 console.log('Crypto handler has started');
 
-let tmpRequest: ICryptoRequest | null;
-
-self.onmessage = (e: MessageEvent<ICryptoRequest | Uint8Array>) => {
-	if (!(e.data instanceof Uint8Array)) {
-		tmpRequest = e.data;
-		console.log(`New request ${tmpRequest.id}, waiting for data...`);
-		return;
-	}
-
-	if (!tmpRequest) {
-		return;
-	}
-
+self.onmessage = async (e: MessageEvent<ICryptoRequest>) => {
 	const req = e.data;
-	console.log(`Get data for ${tmpRequest.id} with length : ${req.length}`);
-	tmpRequest.data = req;
-	const res = handler(tmpRequest);
-	tmpRequest = null;
+	console.log(`Get new Request ${req.id}:`, req);
 
-	if (!res.success) {
-		self.postMessage(res);
+	const result = await handler(req);
+
+	if (!result.success) {
+		self.postMessage(result);
 		return;
 	}
 
-	const data = res.data;
-	res.data = new Uint8Array(0);
-	self.postMessage(res);
+	const data = result.data;
+	const response: ICryptoResponse = {
+		id: result.id,
+		message: result.message,
+		success: result.success,
+	};
+	self.postMessage(response);
 	self.postMessage(data, {
 		transfer: [data!.buffer],
 	});
 };
 
-const handler = (req: ICryptoRequest): ICryptoResponse => {
+const handler = async (req: ICryptoRequest): Promise<ICryptoResponse> => {
 	const action = req.action;
 	if (action !== 'encrypt' && action !== 'decrypt')
 		return {
@@ -53,15 +45,23 @@ const handler = (req: ICryptoRequest): ICryptoResponse => {
 			message: 'Key is required',
 		};
 
-	const data = req.data;
-	if (!data || data.length === 0)
+	if (!req.file && !req.text)
 		return {
 			id: req.id,
 			success: false,
 			message: 'Data is required',
 		};
+	const isFromFile = !req.file ? false : true;
 
 	try {
+		let data: Uint8Array;
+		if (!isFromFile) {
+			data = new Uint8Array(strToBytes(req.text));
+		} else {
+			const buff = await req.file!.arrayBuffer();
+			data = new Uint8Array(buff);
+		}
+
 		const resolver = action === 'encrypt' ? encrypt : decrypt;
 		const result = resolver(data, key);
 

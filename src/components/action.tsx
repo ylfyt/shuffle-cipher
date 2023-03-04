@@ -17,11 +17,7 @@ const Action: FC<ActionProps> = () => {
 	const run = async (action: 'encrypt' | 'decrypt') => {
 		setLoading(true);
 		setMessage('Loading...');
-		const res = await runCrypto({
-			key,
-			action,
-			data: new Uint8Array(),
-		});
+		const res = await runCrypto(action);
 		setMessage('');
 		setLoading(false);
 

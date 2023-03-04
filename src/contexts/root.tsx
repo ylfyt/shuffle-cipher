@@ -1,6 +1,6 @@
 import { createContext, FC, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
-import { ICryptoPayload } from '../interfaces/crypto-payload';
 import { ICryptoResponse } from '../interfaces/crypto-response';
+import { ICryptoRequest } from '../interfaces/crypto-request';
 
 interface IRootContext {
 	key: string;
@@ -13,7 +13,7 @@ interface IRootContext {
 	setDataFile: React.Dispatch<React.SetStateAction<File | undefined>>;
 	output: Uint8Array;
 	setOutput: React.Dispatch<React.SetStateAction<Uint8Array>>;
-	runCrypto: (payload: ICryptoPayload) => Promise<ICryptoResponse>;
+	runCrypto: (action: 'encrypt' | 'decrypt') => Promise<ICryptoResponse>;
 }
 
 const RootContext = createContext<IRootContext>({
@@ -76,20 +76,21 @@ const RootProvider: FC<Props> = ({ children }) => {
 		};
 	}, []);
 
-	const runCrypto = (payload: ICryptoPayload): Promise<ICryptoResponse> => {
+	const runCrypto = (action: 'encrypt' | 'decrypt'): Promise<ICryptoResponse> => {
 		return new Promise((resolve) => {
 			const id = new Date().getTime();
 			resolvers.set(id, resolve);
 
-			const data = payload.data;
 			// Send request information
 			try {
-				worker.postMessage({
-					...payload,
+				const req: ICryptoRequest = {
+					action,
+					key,
 					id,
-				});
-				// Send request data
-				worker.postMessage(data, [data.buffer]);
+					file: isFromFile ? dataFile : undefined,
+					text: !isFromFile ? dataText : '',
+				};
+				worker.postMessage(req);
 			} catch (error) {
 				console.log(error);
 			}
