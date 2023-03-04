@@ -3,10 +3,16 @@ import Action from './components/action';
 import Input from './components/input';
 import Key from './components/key';
 import Output from './components/output';
+import { encrypt } from './algorithms/shuffle-aes';
+import { strToBytes } from './utils/str-to-bytes';
 
 function App() {
 	useEffect(() => {
 		document.body.classList.add('bg-slate-800');
+	}, []);
+
+	useEffect(() => {
+		encrypt(new Uint8Array(strToBytes('1234567890abcdefghijk')), 'abcdefghijklmnop');
 	}, []);
 
 	return (
