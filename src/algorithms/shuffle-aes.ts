@@ -140,6 +140,22 @@ const subBytes = (block: number[][]): number[][] => {
 	return result;
 };
 
+const invSubBytes = (block: number[][]): number[][] => {
+	const result: number[][] = [];
+	for (let i = 0; i < 4; i++) {
+		const temp: number[] = [];
+		for (let j = 0; j < 4; j++) {
+			const el = block[i][j];
+			const sub = invSubByte(el);
+			const dec = hexToDec(sub);
+			temp.push(dec);
+		}
+		result.push(temp);
+	}
+
+	return result;
+};
+
 const subBytes2d = (data: number[]): number[] => {
 	const result: number[] = [];
 
@@ -184,6 +200,15 @@ const subByte = (data: number) => {
 	const y = hexDigitToNumber(hex[1])!;
 
 	const sub = sBox[x][y];
+	return sub;
+};
+
+const invSubByte = (data: number) => {
+	const hex = decToHex(data);
+	const x = hexDigitToNumber(hex[0])!;
+	const y = hexDigitToNumber(hex[1])!;
+
+	const sub = invSBox[x][y];
 	return sub;
 };
 
@@ -255,6 +280,98 @@ const div = (a: number, b: number) => {
 	return Math.floor(a / b);
 };
 
+const numOfFactor = (a: number) => {
+	const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
+	let result = new Map<number, boolean>();
+	let idx = 0;
+	while (a > 1) {
+		if (a % primes[idx] === 0) {
+			a = div(a, primes[idx]);
+			result.set(primes[idx], true);
+		} else {
+			idx++;
+		}
+	}
+
+	return result.size;
+};
+
+const rotateColumn = (data: number[][], columnIdx: number, num: number, up: boolean): number[][] => {
+	let column: number[] = [];
+	for (let i = 0; i < 4; i++) {
+		column.push(data[i][columnIdx]);
+	}
+	column = rotate(column, num, !up);
+	for (let i = 0; i < 4; i++) {
+		data[i][columnIdx] = column[i];
+	}
+	return data;
+};
+
+const suffleMatrix = (block: number[][], key: number[][], encrypt: boolean) => {
+	const temp = matrix2Array(key);
+	for (let i = 0; i < temp.length; i++) {
+		const el = temp[i];
+		const hex = decToHex(el);
+		const hex0 = hexDigitToNumber(hex[0])!;
+		const hex1 = hexDigitToNumber(hex[1])!;
+		const fac = numOfFactor(hex0 * hex1);
+		const x = hex0 % 4;
+		const y = hex1 % 4;
+		if (hex1 % 2 === 0) {
+			if (fac % 2 === 0) {
+				// kolom x atas
+				block = rotateColumn(block, y, y, encrypt);
+			} else {
+				// kolom x bawah
+				block = rotateColumn(block, y, y, !encrypt);
+			}
+		} else {
+			if (fac % 2 === 0) {
+				// baris x kiri
+				block[x] = rotate(block[x], y, !encrypt);
+			} else {
+				// baris x kanan
+				block[x] = rotate(block[x], y, encrypt);
+			}
+		}
+	}
+
+	return block;
+};
+
+const invSuffleMatrix = (block: number[][], key: number[][], encrypt: boolean) => {
+	const temp = matrix2Array(key);
+	for (let i = 0; i < temp.length; i++) {
+		const el = temp[i];
+		const hex = decToHex(el);
+		const hex0 = hexDigitToNumber(hex[0])!;
+		const hex1 = hexDigitToNumber(hex[1])!;
+		const fac = numOfFactor(hex0 * hex1);
+		const x = hex0 % 4;
+		const y = hex1 % 4;
+		if (hex1 % 2 === 0) {
+			if (fac % 2 === 0) {
+				// kolom x atas
+				block = rotateColumn(block, y, y, !encrypt);
+			} else {
+				// kolom x bawah
+				block = rotateColumn(block, y, y, encrypt);
+			}
+		} else {
+			if (fac % 2 === 0) {
+				// baris x kiri
+				block[x] = rotate(block[x], y, encrypt);
+			} else {
+				// baris x kanan
+				block[x] = rotate(block[x], y, !encrypt);
+			}
+		}
+	}
+
+	return block;
+};
+
 const executeEncrypt = (block: number[][], keys: number[][]) => {
 	let key = getKey(keys, 0);
 
@@ -263,18 +380,106 @@ const executeEncrypt = (block: number[][], keys: number[][]) => {
 	for (let i = 0; i < 15; i++) {
 		key = getKey(keys, i + 1);
 		block = subBytes(block);
-		//suffleMatrix
-		//mixColumns
+		block = suffleMatrix(block, key, true);
+		block = mixColumns(block);
 		block = addRoundKey(block, key);
 	}
 
 	key = getKey(keys, 16);
 	block = subBytes(block);
-	//suffleMatrix
+	block = suffleMatrix(block, key, true);
 	block = addRoundKey(block, key);
 
 	return block;
 };
+
+const mixColumns = function (s: number[][]) {
+	for (var c = 0; c < 4; c++) {
+		var a = new Array(4); // 'a' is a copy of the current column from 's'
+		var b = new Array(4); // 'b' is a•{02} in GF(2^8)
+		for (var i = 0; i < 4; i++) {
+			a[i] = s[i][c];
+			b[i] = s[i][c] & 0x80 ? (s[i][c] << 1) ^ 0x011b : s[i][c] << 1;
+		}
+		// a[n] ^ b[n] is a•{03} in GF(2^8)
+		s[0][c] = b[0] ^ a[1] ^ b[1] ^ a[2] ^ a[3]; // {02}•a0 + {03}•a1 + a2 + a3
+		s[1][c] = a[0] ^ b[1] ^ a[2] ^ b[2] ^ a[3]; // a0 • {02}•a1 + {03}•a2 + a3
+		s[2][c] = a[0] ^ a[1] ^ b[2] ^ a[3] ^ b[3]; // a0 + a1 + {02}•a2 + {03}•a3
+		s[3][c] = a[0] ^ b[0] ^ a[1] ^ a[2] ^ b[3]; // {03}•a0 + a1 + a2 + {02}•a3
+	}
+	return s;
+};
+
+const xtime = (value: number) => {
+	let iResult = 0;
+	iResult = (value & 0x000000ff) * 2;
+	return (iResult & 0x100) != 0 ? iResult ^ 0x11b : iResult;
+};
+
+const getBit = (value: number, i: number) => {
+	const bMasks = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80];
+	const bBit = value & bMasks[i];
+	return (bBit >> i) & 0x01;
+};
+
+const finiteMultiplication = (v1: number, v2: number) => {
+	const bTemps = new Array(8);
+	let bResult = 0;
+	bTemps[0] = v1;
+	for (let i = 1; i < bTemps.length; i++) {
+		bTemps[i] = xtime(bTemps[i - 1]);
+	}
+	for (let i = 0; i < bTemps.length; i++) {
+		if (getBit(v2, i) != 1) {
+			bTemps[i] = 0;
+		}
+		bResult ^= bTemps[i];
+	}
+	return bResult;
+};
+
+const xor4Bytes = (b1: number, b2: number, b3: number, b4: number) => {
+	let bResult = 0;
+	bResult ^= b1;
+	bResult ^= b2;
+	bResult ^= b3;
+	bResult ^= b4;
+	return bResult;
+};
+
+const invMixColumns = (state: number[][]) => {
+	const stateNew:number[][] = []
+  for (let i = 0; i < 4; i++) {
+    const temp = [0, 0, 0, 0]
+    stateNew.push(temp)    
+  }
+	for (let c = 0; c < 4; c++) {
+		stateNew[0][c] = xor4Bytes(finiteMultiplication(state[0][c], 0x0e), finiteMultiplication(state[1][c], 0x0b), finiteMultiplication(state[2][c], 0x0d), finiteMultiplication(state[3][c], 0x09));
+		stateNew[1][c] = xor4Bytes(finiteMultiplication(state[0][c], 0x09), finiteMultiplication(state[1][c], 0x0e), finiteMultiplication(state[2][c], 0x0b), finiteMultiplication(state[3][c], 0x0d));
+		stateNew[2][c] = xor4Bytes(finiteMultiplication(state[0][c], 0x0d), finiteMultiplication(state[1][c], 0x09), finiteMultiplication(state[2][c], 0x0e), finiteMultiplication(state[3][c], 0x0b));
+		stateNew[3][c] = xor4Bytes(finiteMultiplication(state[0][c], 0x0b), finiteMultiplication(state[1][c], 0x0d), finiteMultiplication(state[2][c], 0x09), finiteMultiplication(state[3][c], 0x0e));
+	}
+	return stateNew;
+};
+
+const executeDecrypt= (block: number[][], keys: number[][]): number[][] => {
+  let key = getKey(keys, 16)
+  block = addRoundKey(block, key)
+  for (let i = 14; i >= 0; i--) {
+    let key = getKey(keys, i+1)
+    block = invSuffleMatrix(block, key, false)
+    block = invSubBytes(block)
+    block = addRoundKey(block, key)
+    block = invMixColumns(block)
+  }
+  
+  key = getKey(keys, 0)
+  block = invSuffleMatrix(block, key, false)
+  block = invSubBytes(block)
+  block = addRoundKey(block, key)
+
+  return block
+}
 
 export const encrypt = (data: Uint8Array, keyStr: string): Uint8Array => {
 	const keys = expansionKey(strToBytes(keyStr));
@@ -282,6 +487,8 @@ export const encrypt = (data: Uint8Array, keyStr: string): Uint8Array => {
 	console.log(block);
 	block = executeEncrypt(block, keys);
 	console.log(block);
+  block = executeDecrypt(block, keys)
+  console.log(block);
 
 	return new Uint8Array();
 };
