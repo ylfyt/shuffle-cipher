@@ -4,17 +4,18 @@ import { useRootContext } from '../contexts/root';
 interface ActionProps {}
 
 const Action: FC<ActionProps> = () => {
-	const { isFromFile, dataText, dataFile, key, runCrypto } = useRootContext();
+	const { isFromFile, dataText, dataFile, key, runCrypto, setOutput, setIsEncrypt } = useRootContext();
 
 	const [isDisabled, setIsDisabled] = useState(false);
 	const [message, setMessage] = useState('');
 	const [loading, setLoading] = useState(false);
 
 	useEffect(() => {
-		setIsDisabled(loading || key.length === 0 || (!isFromFile ? dataText.length === 0 : !dataFile));
+		setIsDisabled(loading || key.length === 0 || key.length !== 16 || (!isFromFile ? dataText.length === 0 : !dataFile));
 	}, [isFromFile, dataText, dataFile, key, loading]);
 
 	const run = async (action: 'encrypt' | 'decrypt') => {
+		setIsEncrypt(action === 'encrypt');
 		setLoading(true);
 		setMessage('Loading...');
 		const res = await runCrypto(action);
@@ -27,6 +28,7 @@ const Action: FC<ActionProps> = () => {
 		}
 
 		console.log(res);
+		setOutput(res.data ?? new Uint8Array(0));
 	};
 
 	return (

@@ -14,6 +14,8 @@ interface IRootContext {
 	output: Uint8Array;
 	setOutput: React.Dispatch<React.SetStateAction<Uint8Array>>;
 	runCrypto: (action: 'encrypt' | 'decrypt') => Promise<ICryptoResponse>;
+	isEncrypt: boolean;
+	setIsEncrypt: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const RootContext = createContext<IRootContext>({
@@ -30,6 +32,8 @@ const RootContext = createContext<IRootContext>({
 	runCrypto: () => {
 		throw new Error('Not implemented yet');
 	},
+	isEncrypt: false,
+	setIsEncrypt: () => {},
 });
 
 export const useRootContext = () => {
@@ -45,6 +49,7 @@ const RootProvider: FC<Props> = ({ children }) => {
 	const [dataText, setDataText] = useState('');
 	const [dataFile, setDataFile] = useState<File>();
 	const [output, setOutput] = useState<Uint8Array>(new Uint8Array());
+	const [isEncrypt, setIsEncrypt] = useState(false);
 
 	const resolvers: Map<number, (res: ICryptoResponse) => void> = useMemo(() => new Map(), []);
 	let tmpResponse: ICryptoResponse | null = useMemo(() => null, []);
@@ -97,7 +102,11 @@ const RootProvider: FC<Props> = ({ children }) => {
 		});
 	};
 
-	return <RootContext.Provider value={{ runCrypto, output, setOutput, setDataFile, dataFile, dataText, setDataText, key, setKey, isFromFile, setIsFromFile }}>{children}</RootContext.Provider>;
+	return (
+		<RootContext.Provider value={{ isEncrypt, setIsEncrypt, runCrypto, output, setOutput, setDataFile, dataFile, dataText, setDataText, key, setKey, isFromFile, setIsFromFile }}>
+			{children}
+		</RootContext.Provider>
+	);
 };
 
 export default RootProvider;

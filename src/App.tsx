@@ -12,12 +12,12 @@ function App() {
 	}, []);
 
 	useEffect(() => {
-    let data = new Uint8Array(strToBytes('1234567890abcdefghijk'))
-		console.log('I', data);
-		data = encrypt(data, 'abcdefghijklmnop');
-		console.log('E', data);
-		data = decrypt(data, 'abcdefghijklmnop');
-		console.log('D', data);
+    // let data = new Uint8Array(strToBytes('1234567890abcdefghijk'))
+		// console.log('I', data);
+		// data = encrypt(data, 'abcdefghijklmnop');
+		// console.log('E', data);
+		// data = decrypt(data, 'abcdefghijklmnop');
+		// console.log('D', data);
 	}, []);
 
 	return (
