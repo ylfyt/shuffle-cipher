@@ -3,21 +3,10 @@ import Action from './components/action';
 import Input from './components/input';
 import Key from './components/key';
 import Output from './components/output';
-import { decrypt, encrypt } from './algorithms/shuffle-aes';
-import { strToBytes } from './utils/str-to-bytes';
 
 function App() {
 	useEffect(() => {
 		document.body.classList.add('bg-slate-800');
-	}, []);
-
-	useEffect(() => {
-    let data = new Uint8Array(strToBytes('a'))
-		console.log('I', data);
-		let result = encrypt(data, 'abcdefghijklmnop');
-		console.log('E', result);
-		const result2 = decrypt(result, 'abcdefghijklmnop');
-		console.log('D', result2);
 	}, []);
 
 	return (

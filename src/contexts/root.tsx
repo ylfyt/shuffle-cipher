@@ -62,6 +62,8 @@ const RootProvider: FC<Props> = ({ children }) => {
 			if (res instanceof Uint8Array) {
 				console.log(`Get response data for ${tmpResponse!.id} with length: ${res.length}`);
 				tmpResponse!.data = res;
+				const endTime = new Date().getTime();
+				tmpResponse!.message = `${tmpResponse?.message}Success | Time: ${endTime - tmpResponse!.id} ms`;
 				const resolve = resolvers.get(tmpResponse!.id)!;
 				resolve(tmpResponse!);
 				resolvers.delete(tmpResponse!.id);

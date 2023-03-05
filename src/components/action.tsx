@@ -15,20 +15,21 @@ const Action: FC<ActionProps> = () => {
 	}, [isFromFile, dataText, dataFile, key, loading]);
 
 	const run = async (action: 'encrypt' | 'decrypt') => {
+		setOutput(new Uint8Array(0));
 		setIsEncrypt(action === 'encrypt');
 		setLoading(true);
 		setMessage('Loading...');
 		const res = await runCrypto(action);
 		setMessage('');
 		setLoading(false);
+		setMessage(res.message);
 
 		if (!res.success) {
-			setMessage(res.message);
 			return;
 		}
 
 		console.log(res);
-		setOutput(res.data ?? new Uint8Array(0));
+		res.data && setOutput(res.data);
 	};
 
 	return (
