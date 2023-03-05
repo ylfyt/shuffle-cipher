@@ -69,6 +69,8 @@ const rCon = [
 	[0x36, 0x00, 0x00, 0x00],
 ];
 
+const NUM_OF_ROUND = 10;
+
 const decToHex = (dec: number) => {
 	const hex = dec.toString(16);
 	return hex.length === 2 ? hex : '0' + hex;
@@ -235,7 +237,7 @@ const rotate = (data: number[], num: number, right: boolean): number[] => {
 const expansionKey = (key: number[]): number[][] => {
 	const nb = 4;
 	const nk = 4;
-	const nr = nk + 12;
+	const nr = NUM_OF_ROUND;
 
 	const w = new Array<number[]>(nr + 1);
 	let temp = new Array<number>(4);
@@ -372,27 +374,6 @@ const invSuffleMatrix = (block: number[][], key: number[][], encrypt: boolean) =
 	return block;
 };
 
-const executeEncrypt = (block: number[][], keys: number[][]) => {
-	let key = getKey(keys, 0);
-
-	block = addRoundKey(block, key);
-
-	for (let i = 0; i < 15; i++) {
-		key = getKey(keys, i + 1);
-		block = subBytes(block);
-		block = suffleMatrix(block, key, true);
-		block = mixColumns(block);
-		block = addRoundKey(block, key);
-	}
-
-	key = getKey(keys, 16);
-	block = subBytes(block);
-	block = suffleMatrix(block, key, true);
-	block = addRoundKey(block, key);
-
-	return block;
-};
-
 const mixColumns = function (s: number[][]) {
 	for (var c = 0; c < 4; c++) {
 		var a = new Array(4); // 'a' is a copy of the current column from 's'
@@ -448,11 +429,11 @@ const xor4Bytes = (b1: number, b2: number, b3: number, b4: number) => {
 };
 
 const invMixColumns = (state: number[][]) => {
-	const stateNew:number[][] = []
-  for (let i = 0; i < 4; i++) {
-    const temp = [0, 0, 0, 0]
-    stateNew.push(temp)    
-  }
+	const stateNew: number[][] = [];
+	for (let i = 0; i < 4; i++) {
+		const temp = [0, 0, 0, 0];
+		stateNew.push(temp);
+	}
 	for (let c = 0; c < 4; c++) {
 		stateNew[0][c] = xor4Bytes(finiteMultiplication(state[0][c], 0x0e), finiteMultiplication(state[1][c], 0x0b), finiteMultiplication(state[2][c], 0x0d), finiteMultiplication(state[3][c], 0x09));
 		stateNew[1][c] = xor4Bytes(finiteMultiplication(state[0][c], 0x09), finiteMultiplication(state[1][c], 0x0e), finiteMultiplication(state[2][c], 0x0b), finiteMultiplication(state[3][c], 0x0d));
@@ -462,39 +443,99 @@ const invMixColumns = (state: number[][]) => {
 	return stateNew;
 };
 
-const executeDecrypt= (block: number[][], keys: number[][]): number[][] => {
-  let key = getKey(keys, 16)
-  block = addRoundKey(block, key)
-  for (let i = 14; i >= 0; i--) {
-    let key = getKey(keys, i+1)
-    block = invSuffleMatrix(block, key, false)
-    block = invSubBytes(block)
-    block = addRoundKey(block, key)
-    block = invMixColumns(block)
-  }
-  
-  key = getKey(keys, 0)
-  block = invSuffleMatrix(block, key, false)
-  block = invSubBytes(block)
-  block = addRoundKey(block, key)
+const executeEncrypt = (block: number[][], keys: number[][]) => {
+	let key = getKey(keys, 0);
 
-  return block
-}
+	block = addRoundKey(block, key);
 
-export const encrypt = (data: Uint8Array, keyStr: string): Uint8Array => {
-	const keys = expansionKey(strToBytes(keyStr));
-	let block = array2Matrix(getBlock(data, 0), 4);
-	console.log(block);
-	block = executeEncrypt(block, keys);
-	console.log(block);
-  block = executeDecrypt(block, keys)
-  console.log(block);
+	for (let i = 0; i < 9; i++) {
+		key = getKey(keys, i + 1);
+		block = subBytes(block);
+		block = suffleMatrix(block, key, true);
+		block = mixColumns(block);
+		block = addRoundKey(block, key);
+	}
 
-	return new Uint8Array();
+	for (let i = 9; i < NUM_OF_ROUND; i++) {
+		key = getKey(keys, i + 1);
+		block = subBytes(block);
+		block = suffleMatrix(block, key, true);
+		block = addRoundKey(block, key);
+	}
+
+	return block;
 };
 
-export const decrypt = (data: Uint8Array, key: string): Uint8Array => {
-	console.log('decrypt', data);
+const executeDecrypt = (block: number[][], keys: number[][]): number[][] => {
+	let key = getKey(keys, NUM_OF_ROUND);
+	block = addRoundKey(block, key);
+	for (let i = NUM_OF_ROUND - 1; i > 8; i--) {
+		let key = getKey(keys, i + 1);
+		block = invSuffleMatrix(block, key, false);
+		block = invSubBytes(block);
+		block = addRoundKey(block, key);
+	}
 
-	return new Uint8Array();
+	for (let i = 8; i >= 0; i--) {
+		let key = getKey(keys, i + 1);
+		block = invSuffleMatrix(block, key, false);
+		block = invSubBytes(block);
+		block = addRoundKey(block, key);
+		block = invMixColumns(block);
+	}
+
+	key = getKey(keys, 0);
+	block = invSuffleMatrix(block, key, false);
+	block = invSubBytes(block);
+	block = addRoundKey(block, key);
+
+	return block;
+};
+
+export const encrypt = (data: Uint8Array, keyStr: string): Uint8Array => {
+  let numOfBlocks = div(data.length, 16);
+	if (data.length % 16 !== 0) {
+    numOfBlocks++;
+	}
+  
+  const keys = expansionKey(strToBytes(keyStr));
+  // console.log(keys);
+
+	for (let i = 0; i < numOfBlocks; i++) {
+		let block = array2Matrix(getBlock(data, i), 4);
+		block = executeEncrypt(block, keys);
+
+    for (let j = 0; j < 4; j++) {
+      for (let k = 0; k < 4; k++) {
+        const el = block[k][j]
+        data[i * 16 + (k * 4 + j)] = el
+      }
+    }
+	}  
+
+	return data;
+};
+
+export const decrypt = (data: Uint8Array, keyStr: string): Uint8Array => {
+	let numOfBlocks = div(data.length, 16);
+	if (data.length % 16 !== 0) {
+    numOfBlocks++;
+	}
+  
+  const keys = expansionKey(strToBytes(keyStr));
+  // console.log(keys);
+
+	for (let i = 0; i < numOfBlocks; i++) {
+		let block = array2Matrix(getBlock(data, i), 4);
+		block = executeDecrypt(block, keys);
+    
+    for (let j = 0; j < 4; j++) {
+      for (let k = 0; k < 4; k++) {
+        const el = block[k][j]
+        data[i * 16 + (k * 4 + j)] = el
+      }
+    }
+	}
+
+	return data;
 };
