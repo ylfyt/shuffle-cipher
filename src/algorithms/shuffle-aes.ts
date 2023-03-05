@@ -69,7 +69,7 @@ const rCon = [
 	[0x36, 0x00, 0x00, 0x00],
 ];
 
-const NUM_OF_ROUND = 10;
+const NUM_OF_ROUND = 16;
 
 const decToHex = (dec: number) => {
 	const hex = dec.toString(16);
@@ -81,12 +81,13 @@ const hexToDec = (hex: string) => {
 };
 
 const addRoundKey = (block: number[][], key: number[][]) => {
+	const data = copyMatrix(block);
 	const result: number[][] = [];
 
 	for (let i = 0; i < 4; i++) {
 		const temp: number[] = [];
 		for (let j = 0; j < 4; j++) {
-			const result = block[i][j] ^ key[i][j];
+			const result = data[i][j] ^ key[i][j];
 			temp.push(result);
 		}
 		result.push(temp);
@@ -114,24 +115,35 @@ const array2Matrix = (data: number[], size: number): number[][] => {
 
 const getBlock = (data: Uint8Array, part: number): number[] => {
 	const block: number[] = [];
-
+  let first = true
 	for (let i = 0; i < 16; i++) {
 		const idx = part * 16 + i;
 		const el = data[idx];
 
-		if (typeof el === 'undefined') block.push(65);
-		else block.push(el);
+		if (typeof el !== 'undefined') block.push(el)
+    else {
+      if (first)
+      {
+        first = false
+        block.push(66)
+      }
+      else {
+        block.push(65)
+      }
+    }
+    
 	}
 
 	return block;
 };
 
 const subBytes = (block: number[][]): number[][] => {
+	const data = copyMatrix(block);
 	const result: number[][] = [];
 	for (let i = 0; i < 4; i++) {
 		const temp: number[] = [];
 		for (let j = 0; j < 4; j++) {
-			const el = block[i][j];
+			const el = data[i][j];
 			const sub = subByte(el);
 			const dec = hexToDec(sub);
 			temp.push(dec);
@@ -143,11 +155,12 @@ const subBytes = (block: number[][]): number[][] => {
 };
 
 const invSubBytes = (block: number[][]): number[][] => {
+	const data = copyMatrix(block);
 	const result: number[][] = [];
 	for (let i = 0; i < 4; i++) {
 		const temp: number[] = [];
 		for (let j = 0; j < 4; j++) {
-			const el = block[i][j];
+			const el = data[i][j];
 			const sub = invSubByte(el);
 			const dec = hexToDec(sub);
 			temp.push(dec);
@@ -214,24 +227,33 @@ const invSubByte = (data: number) => {
 	return sub;
 };
 
+const copyArray = (data: number[]) => {
+	const temp: number[] = [];
+	for (const el of data) {
+		temp.push(el);
+	}
+	return temp;
+};
+
 const rotate = (data: number[], num: number, right: boolean): number[] => {
+	const result = copyArray(data);
 	for (let i = 0; i < num; i++) {
 		if (right) {
-			const last = data[data.length - 1];
-			for (let j = data.length - 1; j >= 1; j--) {
-				data[j] = data[j - 1];
+			const last = result[result.length - 1];
+			for (let j = result.length - 1; j >= 1; j--) {
+				result[j] = result[j - 1];
 			}
-			data[0] = last;
+			result[0] = last;
 		} else {
-			const first = data[0];
-			for (let j = 0; j < data.length; j++) {
-				data[j] = data[j + 1];
+			const first = result[0];
+			for (let j = 0; j < result.length; j++) {
+				result[j] = result[j + 1];
 			}
-			data[data.length - 1] = first;
+			result[result.length - 1] = first;
 		}
 	}
 
-	return data;
+	return result;
 };
 
 const expansionKey = (key: number[]): number[][] => {
@@ -298,20 +320,33 @@ const numOfFactor = (a: number) => {
 	return result.size;
 };
 
+const copyMatrix = (mat: number[][]) => {
+	const result: number[][] = [];
+	for (const row of mat) {
+		const temp = [...row];
+		result.push(temp);
+	}
+
+	return result;
+};
+
 const rotateColumn = (data: number[][], columnIdx: number, num: number, up: boolean): number[][] => {
+	const result = copyMatrix(data);
 	let column: number[] = [];
 	for (let i = 0; i < 4; i++) {
 		column.push(data[i][columnIdx]);
 	}
 	column = rotate(column, num, !up);
 	for (let i = 0; i < 4; i++) {
-		data[i][columnIdx] = column[i];
+		result[i][columnIdx] = column[i];
 	}
-	return data;
+
+	return result;
 };
 
-const suffleMatrix = (block: number[][], key: number[][], encrypt: boolean) => {
+const suffleMatrix = (block: number[][], key: number[][]) => {
 	const temp = matrix2Array(key);
+	let result = copyMatrix(block);
 	for (let i = 0; i < temp.length; i++) {
 		const el = temp[i];
 		const hex = decToHex(el);
@@ -320,31 +355,24 @@ const suffleMatrix = (block: number[][], key: number[][], encrypt: boolean) => {
 		const fac = numOfFactor(hex0 * hex1);
 		const x = hex0 % 4;
 		const y = hex1 % 4;
-		if (hex1 % 2 === 0) {
-			if (fac % 2 === 0) {
-				// kolom x atas
-				block = rotateColumn(block, y, y, encrypt);
-			} else {
-				// kolom x bawah
-				block = rotateColumn(block, y, y, !encrypt);
-			}
+
+		if (fac % 2 === 0) {
+			// Kolom x Atas
+			result = rotateColumn(result, y, y, true);
 		} else {
-			if (fac % 2 === 0) {
-				// baris x kiri
-				block[x] = rotate(block[x], y, !encrypt);
-			} else {
-				// baris x kanan
-				block[x] = rotate(block[x], y, encrypt);
-			}
+			// Baris x Kanan
+			result[x] = rotate(result[x], y, true);
 		}
 	}
 
-	return block;
+	return result;
 };
 
-const invSuffleMatrix = (block: number[][], key: number[][], encrypt: boolean) => {
+const invSuffleMatrix = (block: number[][], key: number[][]) => {
 	const temp = matrix2Array(key);
-	for (let i = 0; i < temp.length; i++) {
+
+	let result = copyMatrix(block);
+	for (let i = temp.length - 1; i >= 0; i--) {
 		const el = temp[i];
 		const hex = decToHex(el);
 		const hex0 = hexDigitToNumber(hex[0])!;
@@ -352,43 +380,36 @@ const invSuffleMatrix = (block: number[][], key: number[][], encrypt: boolean) =
 		const fac = numOfFactor(hex0 * hex1);
 		const x = hex0 % 4;
 		const y = hex1 % 4;
-		if (hex1 % 2 === 0) {
-			if (fac % 2 === 0) {
-				// kolom x atas
-				block = rotateColumn(block, y, y, !encrypt);
-			} else {
-				// kolom x bawah
-				block = rotateColumn(block, y, y, encrypt);
-			}
+
+		if (fac % 2 === 0) {
+			// Kolom x Atas
+			result = rotateColumn(result, y, y, false);
 		} else {
-			if (fac % 2 === 0) {
-				// baris x kiri
-				block[x] = rotate(block[x], y, encrypt);
-			} else {
-				// baris x kanan
-				block[x] = rotate(block[x], y, !encrypt);
-			}
+			// Baris x Kanan
+			result[x] = rotate(result[x], y, false);
 		}
 	}
 
-	return block;
+	return result;
 };
 
 const mixColumns = function (s: number[][]) {
+	const result = copyMatrix(s);
+
 	for (var c = 0; c < 4; c++) {
 		var a = new Array(4); // 'a' is a copy of the current column from 's'
 		var b = new Array(4); // 'b' is a•{02} in GF(2^8)
 		for (var i = 0; i < 4; i++) {
-			a[i] = s[i][c];
-			b[i] = s[i][c] & 0x80 ? (s[i][c] << 1) ^ 0x011b : s[i][c] << 1;
+			a[i] = result[i][c];
+			b[i] = result[i][c] & 0x80 ? (result[i][c] << 1) ^ 0x011b : result[i][c] << 1;
 		}
 		// a[n] ^ b[n] is a•{03} in GF(2^8)
-		s[0][c] = b[0] ^ a[1] ^ b[1] ^ a[2] ^ a[3]; // {02}•a0 + {03}•a1 + a2 + a3
-		s[1][c] = a[0] ^ b[1] ^ a[2] ^ b[2] ^ a[3]; // a0 • {02}•a1 + {03}•a2 + a3
-		s[2][c] = a[0] ^ a[1] ^ b[2] ^ a[3] ^ b[3]; // a0 + a1 + {02}•a2 + {03}•a3
-		s[3][c] = a[0] ^ b[0] ^ a[1] ^ a[2] ^ b[3]; // {03}•a0 + a1 + a2 + {02}•a3
+		result[0][c] = b[0] ^ a[1] ^ b[1] ^ a[2] ^ a[3]; // {02}•a0 + {03}•a1 + a2 + a3
+		result[1][c] = a[0] ^ b[1] ^ a[2] ^ b[2] ^ a[3]; // a0 • {02}•a1 + {03}•a2 + a3
+		result[2][c] = a[0] ^ a[1] ^ b[2] ^ a[3] ^ b[3]; // a0 + a1 + {02}•a2 + {03}•a3
+		result[3][c] = a[0] ^ b[0] ^ a[1] ^ a[2] ^ b[3]; // {03}•a0 + a1 + a2 + {02}•a3
 	}
-	return s;
+	return result;
 };
 
 const xtime = (value: number) => {
@@ -444,74 +465,70 @@ const invMixColumns = (state: number[][]) => {
 };
 
 const executeEncrypt = (block: number[][], keys: number[][]) => {
-	let key = getKey(keys, 0);
+  let result = copyMatrix(block);
+	
+  let key = getKey(keys, 0);
+  result = addRoundKey(result, key);
+  
+  for (let i = 1; i < NUM_OF_ROUND+1; i++) {
+    let key = getKey(keys, i);
+    
+    result = subBytes(result);
+		result = suffleMatrix(result, key);
+		result = addRoundKey(result, key);
+  }
 
-	block = addRoundKey(block, key);
-
-	for (let i = 0; i < 9; i++) {
-		key = getKey(keys, i + 1);
-		block = subBytes(block);
-		block = suffleMatrix(block, key, true);
-		block = mixColumns(block);
-		block = addRoundKey(block, key);
-	}
-
-	for (let i = 9; i < NUM_OF_ROUND; i++) {
-		key = getKey(keys, i + 1);
-		block = subBytes(block);
-		block = suffleMatrix(block, key, true);
-		block = addRoundKey(block, key);
-	}
-
-	return block;
+	return result;
 };
 
 const executeDecrypt = (block: number[][], keys: number[][]): number[][] => {
-	let key = getKey(keys, NUM_OF_ROUND);
-	block = addRoundKey(block, key);
-	for (let i = NUM_OF_ROUND - 1; i > 8; i--) {
-		let key = getKey(keys, i + 1);
-		block = invSuffleMatrix(block, key, false);
-		block = invSubBytes(block);
-		block = addRoundKey(block, key);
-	}
+	let result = copyMatrix(block);
 
-	for (let i = 8; i >= 0; i--) {
-		let key = getKey(keys, i + 1);
-		block = invSuffleMatrix(block, key, false);
-		block = invSubBytes(block);
-		block = addRoundKey(block, key);
-		block = invMixColumns(block);
-	}
+  for (let i = NUM_OF_ROUND; i >= 1; i--) {
+    let key = getKey(keys, i);
+    
+		result = addRoundKey(result, key);
+    result = invSuffleMatrix(result, key);
+		result = invSubBytes(result);
+  }
 
-	key = getKey(keys, 0);
-	block = invSuffleMatrix(block, key, false);
-	block = invSubBytes(block);
-	block = addRoundKey(block, key);
+	let key = getKey(keys, 0);
+	result = addRoundKey(result, key);
 
-	return block;
+	return result;
 };
 
 export const encrypt = (data: Uint8Array, keyStr: string): Uint8Array => {
-  let numOfBlocks = div(data.length, 16);
+	let numOfBlocks = div(data.length, 16);
+  let pad = 0
 	if (data.length % 16 !== 0) {
-    numOfBlocks++;
+    pad = 16 - (data.length % 16)
+		numOfBlocks++;
 	}
-  
-  const keys = expansionKey(strToBytes(keyStr));
-  // console.log(keys);
 
-	for (let i = 0; i < numOfBlocks; i++) {
-		let block = array2Matrix(getBlock(data, i), 4);
+  if (pad != 0) {
+    const newData = new Uint8Array(data.length + pad)
+    newData.set(data)
+    newData.set(Array(pad).fill(0), data.length)
+    data = newData
+  }
+  
+
+	const keys = expansionKey(strToBytes(keyStr));
+	// console.log(keys);
+
+	for (let part = 0; part < numOfBlocks; part++) {
+		let block = array2Matrix(getBlock(data, part), 4);
+  
 		block = executeEncrypt(block, keys);
 
-    for (let j = 0; j < 4; j++) {
-      for (let k = 0; k < 4; k++) {
-        const el = block[k][j]
-        data[i * 16 + (k * 4 + j)] = el
-      }
-    }
-	}  
+		for (let j = 0; j < 4; j++) {
+			for (let k = 0; k < 4; k++) {
+				const el = block[k][j];
+				data[part * 16 + (j * 4 + k)] = el;
+			}
+		}
+	}
 
 	return data;
 };
@@ -519,22 +536,23 @@ export const encrypt = (data: Uint8Array, keyStr: string): Uint8Array => {
 export const decrypt = (data: Uint8Array, keyStr: string): Uint8Array => {
 	let numOfBlocks = div(data.length, 16);
 	if (data.length % 16 !== 0) {
-    numOfBlocks++;
+		numOfBlocks++;
 	}
-  
-  const keys = expansionKey(strToBytes(keyStr));
-  // console.log(keys);
+
+	const keys = expansionKey(strToBytes(keyStr));
+	// console.log(keys);
 
 	for (let i = 0; i < numOfBlocks; i++) {
 		let block = array2Matrix(getBlock(data, i), 4);
+
 		block = executeDecrypt(block, keys);
     
-    for (let j = 0; j < 4; j++) {
-      for (let k = 0; k < 4; k++) {
-        const el = block[k][j]
-        data[i * 16 + (k * 4 + j)] = el
-      }
-    }
+		for (let j = 0; j < 4; j++) {
+			for (let k = 0; k < 4; k++) {
+				const el = block[k][j];
+				data[i * 16 + (j * 4 + k)] = el;
+			}
+		}
 	}
 
 	return data;
